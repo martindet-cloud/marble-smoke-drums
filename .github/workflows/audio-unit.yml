@@ -17,7 +17,7 @@ permissions:
 jobs:
   component:
     name: Compila e valida DRUMS.component
-    runs-on: macos-26
+    runs-on: macos-15
     defaults:
       run:
         working-directory: audio-unit
