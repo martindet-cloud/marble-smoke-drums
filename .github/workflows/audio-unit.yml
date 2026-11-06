@@ -1,0 +1,82 @@
+name: Audio Unit
+
+# Compila DRUMS.component (Apple Silicon + Intel) su un Mac di GitHub,
+# lo firma ad-hoc, lo valida con auval e lo pubblica nella pagina Releases.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "audio-unit/**"
+      - ".github/workflows/audio-unit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  component:
+    name: Compila e valida DRUMS.component
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: audio-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: audio-unit/build/_deps
+          key: juce-8.0.6-${{ runner.os }}
+
+      - name: Configura
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Compila
+        run: cmake --build build --config Release --target MarbleSmokeDrums_AU --parallel 4
+
+      - name: Firma ad-hoc e controlla le architetture
+        run: |
+          COMP=build/MarbleSmokeDrums_artefacts/Release/AU/DRUMS.component
+          codesign --force --deep --sign - "$COMP"
+          codesign --verify --deep --strict --verbose=2 "$COMP"
+          lipo -info "$COMP/Contents/MacOS/DRUMS"
+          echo "COMP=$PWD/$COMP" >> "$GITHUB_ENV"
+
+      - name: Valida con auval
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$COMP" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -a | grep -i "Mrbl" || true
+          set -o pipefail
+          auval -strict -v aumu Drm1 Mrbl | tee "$GITHUB_WORKSPACE/auval.log"
+
+      - name: Impacchetta
+        run: |
+          VERSION=$(sed -n 's/^project(MarbleSmokeDrums VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          ditto -c -k --sequesterRsrc --keepParent "$COMP" "$GITHUB_WORKSPACE/dist/DRUMS_${VERSION}_component.zip"
+          git -C "$GITHUB_WORKSPACE" archive --format=zip --prefix=Drums/ -o "$GITHUB_WORKSPACE/dist/DRUMS_${VERSION}_Sorgenti.zip" HEAD:audio-unit
+          ls -la "$GITHUB_WORKSPACE/dist"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DRUMS-audio-unit
+          path: |
+            dist/*
+            auval.log
+
+      - name: Pubblica nella pagina Releases
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "au-${{ github.run_number }}" "$GITHUB_WORKSPACE"/dist/*.zip "$GITHUB_WORKSPACE/auval.log" \
+            --title "DRUMS Audio Unit · build ${{ github.run_number }}" \
+            --notes "DRUMS.component universale (Apple Silicon + Intel), firmato ad-hoc e validato con auval. Vedi audio-unit/LEGGIMI.md per l'installazione." \
+            --latest=false

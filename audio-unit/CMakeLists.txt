@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.22)
+project(MarbleSmokeDrums VERSION 0.1.0 LANGUAGES C CXX)
+if(NOT APPLE)
+  message(FATAL_ERROR "DRUMS AU needs macOS/Xcode")
+endif()
+include(FetchContent)
+FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.6 GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(JUCE)
+file(GLOB DRUMS_SOUNDS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Sounds/*.wav")
+juce_add_binary_data(DrumsSamples SOURCES ${DRUMS_SOUNDS})
+juce_add_plugin(MarbleSmokeDrums COMPANY_NAME "Marble Smoke" BUNDLE_ID "com.marblesmoke.drums"
+  PLUGIN_MANUFACTURER_CODE Mrbl PLUGIN_CODE Drm1 FORMATS AU PRODUCT_NAME "DRUMS"
+  IS_SYNTH TRUE NEEDS_MIDI_INPUT TRUE NEEDS_MIDI_OUTPUT FALSE COPY_PLUGIN_AFTER_BUILD FALSE)
+target_sources(MarbleSmokeDrums PRIVATE Source/Plugin.cpp)
+target_compile_features(MarbleSmokeDrums PRIVATE cxx_std_17)
+target_compile_definitions(MarbleSmokeDrums PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(MarbleSmokeDrums PRIVATE DrumsSamples juce::juce_audio_utils PUBLIC juce::juce_recommended_config_flags)
