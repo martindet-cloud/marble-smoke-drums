@@ -10,6 +10,12 @@ on:
       - "audio-unit/**"
       - ".github/workflows/audio-unit.yml"
   workflow_dispatch:
+    inputs:
+      runner:
+        description: "Mac di GitHub da usare"
+        type: choice
+        options: [macos-15, macos-15-intel, macos-26, macos-26-intel]
+        default: macos-15
 
 permissions:
   contents: write
@@ -17,7 +23,7 @@ permissions:
 jobs:
   component:
     name: Compila e valida DRUMS.component
-    runs-on: macos-15
+    runs-on: ${{ inputs.runner || 'macos-15' }}
     defaults:
       run:
         working-directory: audio-unit
