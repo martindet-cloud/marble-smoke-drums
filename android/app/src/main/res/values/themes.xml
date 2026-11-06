@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="drums_background">#FF131514</color>
+    <color name="icon_background">#FF131514</color>
+    <style name="Theme.Drums" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/drums_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

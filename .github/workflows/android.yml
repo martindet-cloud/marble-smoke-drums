@@ -1,0 +1,55 @@
+name: Android
+
+# Compila l'APK firmato su un server Linux di GitHub e lo pubblica nella pagina Releases,
+# da dove si scarica direttamente sul telefono o sul tablet.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    name: Compila APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk MarbleSmokeDrums.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarbleSmokeDrums-apk
+          path: android/MarbleSmokeDrums.apk
+
+      - name: Pubblica nella pagina Releases
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-${{ github.run_number }}" MarbleSmokeDrums.apk \
+            --title "Marble Smoke DRUMS Android · build ${{ github.run_number }}" \
+            --notes "APK per l'installazione diretta su telefono e tablet Android (8.0 o successivo)." \
+            --latest
